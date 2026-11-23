@@ -138,6 +138,9 @@ table.t td.n,table.t th.n{text-align:center}
 .schcard{border-top:5px solid var(--c,#ccc)}
 .schcard h4{margin:0 0 2px;font-size:16px}
 .mrow{display:flex;gap:8px;margin-top:10px;align-items:center}
+.nbadge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;margin-left:6px;border-radius:99px;background:#e11d48;color:#fff;font-size:12px;font-weight:700;line-height:1;vertical-align:1px}
+.news.unread h4::after{content:'ใหม่';display:inline-block;margin-left:8px;padding:1px 8px;border-radius:99px;background:#e11d48;color:#fff;font-size:11.5px;font-weight:700;vertical-align:2px}
+.news.unread{position:relative}
 .home{display:flex;flex-direction:column;gap:16px}
 .home>.card{margin:0}
 .mw{display:grid;grid-template-columns:96px minmax(0,1.1fr) minmax(0,1.4fr);gap:14px;align-items:center;padding:12px 6px;border-top:1px solid var(--line)}
@@ -479,6 +482,7 @@ function render(){renderHeader();renderNav();const r=route();let h='';
     else h=({home:pHome,schedule:pSchedule,results:pResults,events:pEvents,schools:pSchools,athletes:pAthletes,certs:pCerts,news:pNews,admin:pAdmin}[r]||pHome)();
   }catch(e){console.error(e);h=`<div class="banner">เกิดข้อผิดพลาดในการแสดงผล: ${esc(e.message)}</div>`}
   $('#main').innerHTML=topBanner()+h;
+  if(r==='news'&&loaded&&unreadNews().length)setTimeout(()=>markRead(Object.keys(S.news)),1500);
 }
 function topBanner(){
   if(DEMO)return `<div class="banner info">🧪 <b>โหมดทดลอง</b> — เชื่อมต่อฐานข้อมูลไม่ได้ ข้อมูลเป็นตัวอย่างและจะไม่ถูกบันทึก</div>`;
@@ -503,7 +507,8 @@ function renderNav(){
   const items=[['home','หน้าแรก'],['schedule','โปรแกรมการแข่งขัน'],['results','ผลการแข่งขัน'],['events','รายการแข่งขัน'],['schools','โรงเรียน'],['athletes','ทะเบียนนักกีฬา'],['news','ข่าวประกาศ']];
   if(isAdmin()||isCoord())items.splice(6,0,['certs','เกียรติบัตร']);
   if(isAdmin())items.push(['admin','ตั้งค่าระบบ']);
-  $('#nav').innerHTML=items.map(([k,l])=>`<a href="#${k}" class="${cur===k?'on':''}">${l}</a>`).join('');
+  const un=unreadNews().length;
+  $('#nav').innerHTML=items.map(([k,l])=>`<a href="#${k}" class="${cur===k?'on':''}">${l}${k==='news'&&un?`<span class="nbadge">${un}</span>`:''}</a>`).join('');
 }
 const emptyBox=(e,t,extra='')=>`<div class="empty"><div class="e">${e}</div>${t}${extra?'<div class="mt">'+extra+'</div>':''}</div>`;
 
@@ -588,7 +593,7 @@ function pHome(){
     <div class="stats"><div class="stat"><b>${sc.length}</b><span>โรงเรียน</span></div><div class="stat"><b>${ev.length}</b><span>รายการแข่งขัน</span></div><div class="stat"><b>${ev.filter(e=>evStatus(e)==='done').length}</b><span>สรุปผลแล้ว</span></div><div class="stat"><b>${ms.filter(m=>m.date===td).length}</b><span>แมตช์วันนี้</span></div></div></div>
   ${setup}
   <div class="home">
-    <div class="card"><h3>📣 ข่าวประกาศ<span class="sp"></span><button class="lnk" data-act="go" data-to="news">ดูทั้งหมด</button></h3>${news.length?news.map(newsItem).join(''):emptyBox('📣','ยังไม่มีข่าวประกาศ')}</div>
+    <div class="card"><h3>📣 ข่าวประกาศ${unreadNews().length?`<span class="nbadge" id="homeNewsBadge">${unreadNews().length}</span>`:''}<span class="sp"></span><button class="lnk" data-act="go" data-to="news">ดูทั้งหมด</button></h3>${news.length?news.map(newsItem).join(''):emptyBox('📣','ยังไม่มีข่าวประกาศ')}</div>
     ${live.length?`<div class="card live"><h3><span class="badge b-live">กำลังแข่งขัน</span> ${live.length} แมตช์</h3>${live.map(matchWide).join('')}</div>`:''}
     <div class="card"><h3>✅ ผลการแข่งขันล่าสุด<span class="sp"></span><button class="lnk" data-act="go" data-to="results">ดูทั้งหมด</button></h3>${recent.length?recent.map(matchWide).join(''):emptyBox('📋','ยังไม่มีผลการแข่งขัน')}</div>
     <div class="card"><h3>🗓️ แมตช์ถัดไป<span class="sp"></span><button class="lnk" data-act="go" data-to="schedule">ดูทั้งหมด</button></h3>${upcoming.length?upcoming.map(matchWide).join(''):emptyBox('🗓️','ยังไม่มีแมตช์ที่กำหนดเวลาไว้')}</div>
@@ -889,7 +894,11 @@ function attachHtml(files){if(!files||!files.length)return '';
   imgs.forEach(f=>{if(!fileCache[f.fid])loadFile(f).catch(()=>{})});
   const sz=f=>f.size>=1048576?(f.size/1048576).toFixed(1)+' MB':Math.max(1,Math.round(f.size/1024))+' KB';
   return `${imgs.length?`<div class="nimgs">${imgs.map(f=>{const c=fileCache[f.fid];return c?.url?`<img src="${c.url}" alt="${esc(f.name||'')}" class="clickable" data-act="viewImg" data-fid="${esc(f.fid)}">`:`<div class="nimgph">${c?.err?'โหลดรูปไม่สำเร็จ':'กำลังโหลดรูป…'}</div>`}).join('')}</div>`:''}${docs.length?`<div class="ndocs">${docs.map(f=>`<button type="button" class="ndoc" data-act="openFile" data-fid="${esc(f.fid)}" data-name="${esc(f.name||'ไฟล์แนบ.pdf')}" data-type="${esc(f.type)}" data-n="${f.n||1}">📄 ${esc(f.name||'ไฟล์แนบ.pdf')} <small>${sz(f)} · ดาวน์โหลด</small></button>`).join('')}</div>`:''}`}
-function newsItem(n){return `<div class="news">${n.pin?'<div class="pin">📌 ปักหมุด</div>':''}<h4>${esc(n.title)}</h4><div class="d">${esc(fmtTs(n.at))}</div><p>${esc(n.body||'')}</p>${attachHtml(n.files)}${isAdmin()?`<div class="row mt" style="margin-top:6px"><button class="btn sm" data-act="editNews" data-id="${n.id}">แก้ไข</button></div>`:''}</div>`}
+let READ=new Set();try{READ=new Set(JSON.parse(localStorage.getItem('newsRead')||'[]'))}catch(e){}
+const saveRead=()=>{try{localStorage.setItem('newsRead',JSON.stringify([...READ]))}catch(e){}};
+const unreadNews=()=>Object.keys(S.news).filter(id=>!READ.has(id));
+function markRead(ids){let ch=false;ids.forEach(id=>{if(!READ.has(id)){READ.add(id);ch=true}});if(ch){saveRead();renderNav();const b=$('#homeNewsBadge');if(b){const k=unreadNews().length;if(k)b.textContent=k;else b.remove()}}}
+function newsItem(n){return `<div class="news ${READ.has(n.id)?'':'unread'}" data-act="readNews" data-id="${n.id}">${n.pin?'<div class="pin">📌 ปักหมุด</div>':''}<h4>${esc(n.title)}</h4><div class="d">${esc(fmtTs(n.at))}</div><p>${esc(n.body||'')}</p>${attachHtml(n.files)}${isAdmin()?`<div class="row mt" style="margin-top:6px"><button class="btn sm" data-act="editNews" data-id="${n.id}">แก้ไข</button></div>`:''}</div>`}
 function pNews(){
   const ns=list('news').sort((a,b)=>(b.pin?1:0)-(a.pin?1:0)||(b.at||0)-(a.at||0));
   return `<div class="row"><div><h2 class="pt">ข่าวประกาศ</h2><p class="sub">ประกาศจากคณะกรรมการจัดการแข่งขัน</p></div><span class="sp"></span>${isAdmin()?'<button class="btn pri" data-act="editNews">+ เขียนประกาศ</button>':''}</div>
@@ -922,7 +931,7 @@ const USER_ERR={'username taken':'ชื่อผู้ใช้นี้มี�
 const uErr=e=>USER_ERR[e?.message]||e?.message||'ไม่สำเร็จ';
 
 /* ================= การกระทำ ================= */
-const A={};
+const A={};A.readNews=(d,el)=>{el?.classList.remove("unread");markRead([d.id])};
 A.printCerts=printCertsFn;
 A.viewImg=d=>{const c=fileCache[d.fid];if(!c?.url)return;openModal('รูปภาพ',`<img src="${c.url}" style="width:100%;border-radius:10px">`,{wide:true})};
 A.openFile=async d=>{try{toast('กำลังเตรียมไฟล์…');const nf=Object.values(S.news).flatMap(n=>n.files||[]).find(x=>x.fid===d.fid)||{fid:d.fid,type:d.type};const c=await loadFile(nf);
