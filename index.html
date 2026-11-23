@@ -142,7 +142,11 @@ table.t td.n,table.t th.n{text-align:center}
 .news.unread h4::after{content:'ใหม่';display:inline-block;margin-left:8px;padding:1px 8px;border-radius:99px;background:#e11d48;color:#fff;font-size:11.5px;font-weight:700;vertical-align:2px}
 .news.unread{position:relative}
 .home{display:flex;flex-direction:column;gap:16px}
-.home>.card{margin:0}
+.home>.card,.duo>.card{margin:0}
+.duo{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:stretch}
+.duo .mw{grid-template-columns:72px minmax(0,1fr);gap:8px 12px;padding:12px 2px}
+.duo .mw .teams{grid-column:1/-1}
+@media (max-width:900px){.duo{grid-template-columns:minmax(0,1fr)}}
 .mw{display:grid;grid-template-columns:96px minmax(0,1.1fr) minmax(0,1.4fr);gap:14px;align-items:center;padding:12px 6px;border-top:1px solid var(--line)}
 .mw:first-of-type{border-top:0}
 .mw .tm{font-weight:700;font-size:15px;line-height:1.3}
@@ -593,9 +597,11 @@ function pHome(){
     <div class="stats"><div class="stat"><b>${sc.length}</b><span>โรงเรียน</span></div><div class="stat"><b>${ev.length}</b><span>รายการแข่งขัน</span></div><div class="stat"><b>${ev.filter(e=>evStatus(e)==='done').length}</b><span>สรุปผลแล้ว</span></div><div class="stat"><b>${ms.filter(m=>m.date===td).length}</b><span>แมตช์วันนี้</span></div></div></div>
   ${setup}
   <div class="home">
-    <div class="card"><h3>📣 ข่าวประกาศ${unreadNews().length?`<span class="nbadge" id="homeNewsBadge">${unreadNews().length}</span>`:''}<span class="sp"></span><button class="lnk" data-act="go" data-to="news">ดูทั้งหมด</button></h3>${news.length?news.map(newsItem).join(''):emptyBox('📣','ยังไม่มีข่าวประกาศ')}</div>
     ${live.length?`<div class="card live"><h3><span class="badge b-live">กำลังแข่งขัน</span> ${live.length} แมตช์</h3>${live.map(matchWide).join('')}</div>`:''}
+    <div class="duo">
+    <div class="card"><h3>📣 ข่าวประกาศ${unreadNews().length?`<span class="nbadge" id="homeNewsBadge">${unreadNews().length}</span>`:''}<span class="sp"></span><button class="lnk" data-act="go" data-to="news">ดูทั้งหมด</button></h3>${news.length?news.map(newsItem).join(''):emptyBox('📣','ยังไม่มีข่าวประกาศ')}</div>
     <div class="card"><h3>✅ ผลการแข่งขันล่าสุด<span class="sp"></span><button class="lnk" data-act="go" data-to="results">ดูทั้งหมด</button></h3>${recent.length?recent.map(matchWide).join(''):emptyBox('📋','ยังไม่มีผลการแข่งขัน')}</div>
+    </div>
     <div class="card"><h3>🗓️ แมตช์ถัดไป<span class="sp"></span><button class="lnk" data-act="go" data-to="schedule">ดูทั้งหมด</button></h3>${upcoming.length?upcoming.map(matchWide).join(''):emptyBox('🗓️','ยังไม่มีแมตช์ที่กำหนดเวลาไว้')}</div>
     ${hasPools()?`<div class="card"><h3>🎖️ ตัวแทนสหวิทยาเขต<span class="sp"></span><button class="lnk" data-act="go" data-to="results">ดูรายละเอียด</button></h3>${repsSummary()}</div>`:`<div class="card"><h3>🏅 ตารางเหรียญรางวัล<span class="sp"></span><button class="lnk" data-act="go" data-to="results">ดูทั้งหมด</button></h3>${medalTable(medals())}</div>`}
   </div>`;
