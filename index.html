@@ -1312,13 +1312,14 @@ A.editUser=d=>{const p=PROFILES.find(x=>x.user_id===d.id);if(!p)return;
       toast('บันทึกแล้ว');loadProfiles(true);return true}catch(e){toast(uErr(e),true);return false}},
    danger:p.user_id===UID?null:{text:'ลบบัญชี',fn:async()=>{closeModal();if(!await confirmBox(`ลบบัญชี “${p.username}”?`,'ลบ'))return false;
      try{await callUsers({action:'delete',user_id:p.user_id});toast('ลบแล้ว');loadProfiles(true)}catch(e){toast(uErr(e),true)}return true}}})};
+const normU=u=>String(u||'').trim().toLowerCase().split('@')[0];
 A.login=()=>{
   openModal('เข้าสู่ระบบ',`<p class="muted" style="margin:0;font-size:13.5px">สำหรับผู้ดูแลระบบและครูผู้ประสานงานโรงเรียน (ผู้ชมทั่วไปไม่ต้องเข้าสู่ระบบ)</p>
   <label class="fl"><span>ชื่อผู้ใช้</span><input class="f" name="u" required autocapitalize="off" autocomplete="username"></label>
   <label class="fl"><span>รหัสผ่าน</span><input class="f" name="p" type="password" required autocomplete="current-password"></label>${NEEDS_SETUP?'<p style="margin:0;font-size:13px"><a href="#" data-act="setup">ตั้งค่าครั้งแรก (สำหรับผู้มีรหัสตั้งค่า)</a></p>':''}`,
-  {saveText:'เข้าสู่ระบบ',onSave:async fd=>{const u=fd.get('u').trim().toLowerCase();
+  {saveText:'เข้าสู่ระบบ',onSave:async fd=>{const u=normU(fd.get('u'));
     const {error}=await SB.auth.signInWithPassword({email:u+'@'+EMAIL_DOMAIN,password:fd.get('p')});
-    if(error){toast('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง',true);return false}toast('เข้าสู่ระบบแล้ว');return true}})};
+    if(error){toast(NEEDS_SETUP?'ยังไม่มีบัญชีในระบบ — กด “ตั้งค่าครั้งแรก” แล้วใส่รหัสตั้งค่าในช่อง “รหัสตั้งค่า”':'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง',true);return false}toast('เข้าสู่ระบบแล้ว');return true}})};
 A.logout=async()=>{await SB.auth.signOut();toast('ออกจากระบบแล้ว')};
 A.myPw=()=>openModal('เปลี่ยนรหัสผ่าน',`<label class="fl"><span>รหัสผ่านใหม่ (อย่างน้อย 6 ตัว)</span><input class="f" name="p" type="password" minlength="6" required autocomplete="new-password"></label>`,
   {onSave:async fd=>{const {error}=await SB.auth.updateUser({password:fd.get('p')});if(error){toast(error.message,true);return false}toast('เปลี่ยนรหัสผ่านแล้ว');return true}});
@@ -1326,10 +1327,10 @@ A.acct=()=>openModal('บัญชีของฉัน',`<p style="margin:0">${
   {saveText:'ออกจากระบบ',onSave:async()=>{await A.logout();return true},danger:{text:'เปลี่ยนรหัสผ่าน',fn:async()=>{closeModal();A.myPw();return false}}});
 A.setup=(d,el,ev)=>{ev?.preventDefault?.();openModal('ตั้งค่าครั้งแรก: สร้างผู้ดูแลระบบ',`<p class="muted" style="margin:0;font-size:13.5px">ใช้รหัสตั้งค่าที่ได้รับ เพื่อสร้างบัญชีผู้ดูแลระบบคนแรก (ทำได้ครั้งเดียว)</p>
   <label class="fl"><span>รหัสตั้งค่า</span><input class="f" name="c" required autocapitalize="characters" autocomplete="off"></label>
-  <label class="fl"><span>ชื่อผู้ใช้ (a-z 0-9 . _ -)</span><input class="f" name="u" required pattern="[a-z0-9._\\-]{3,32}" autocapitalize="off"></label>
+  <label class="fl"><span>ตั้งชื่อผู้ใช้ (ภาษาอังกฤษ/ตัวเลข เช่น supapu5000)</span><input class="f" name="u" required autocapitalize="off" autocomplete="off"></label>
   <label class="fl"><span>ชื่อที่แสดง</span><input class="f" name="n" placeholder="เช่น ครูผู้ดูแลระบบ"></label>
-  <label class="fl"><span>รหัสผ่าน (อย่างน้อย 6 ตัว)</span><input class="f" name="p" type="password" required minlength="6" autocomplete="new-password"></label>`,
-  {saveText:'สร้างผู้ดูแลระบบ',onSave:async fd=>{const u=fd.get('u').trim().toLowerCase(),p=fd.get('p');
+  <label class="fl"><span>ตั้งรหัสผ่านสำหรับเข้าสู่ระบบ (อย่างน้อย 6 ตัว ไม่ใช่รหัสตั้งค่า)</span><input class="f" name="p" type="password" required minlength="6" autocomplete="new-password"></label>`,
+  {saveText:'สร้างผู้ดูแลระบบ',onSave:async fd=>{const u=normU(fd.get('u')),p=fd.get('p');
     try{await callUsers({action:'bootstrap',code:fd.get('c').trim(),username:u,password:p,display_name:fd.get('n').trim()});NEEDS_SETUP=false;
       const {error}=await SB.auth.signInWithPassword({email:u+'@'+EMAIL_DOMAIN,password:p});if(error)throw error;toast('สร้างผู้ดูแลระบบแล้ว');return true}
     catch(e){toast(uErr(e),true);return false}}})};
