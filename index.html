@@ -138,6 +138,26 @@ table.t td.n,table.t th.n{text-align:center}
 .schcard{border-top:5px solid var(--c,#ccc)}
 .schcard h4{margin:0 0 2px;font-size:16px}
 .mrow{display:flex;gap:8px;margin-top:10px;align-items:center}
+.home{display:flex;flex-direction:column;gap:16px}
+.home>.card{margin:0}
+.mw{display:grid;grid-template-columns:96px minmax(0,1.1fr) minmax(0,1.4fr);gap:14px;align-items:center;padding:12px 6px;border-top:1px solid var(--line)}
+.mw:first-of-type{border-top:0}
+.mw .tm{font-weight:700;font-size:15px;line-height:1.3}
+.mw .tm small{display:block;color:var(--muted);font-weight:500;font-size:12.5px}
+.mw .info{font-size:14px;line-height:1.45}
+.mw .info b{font-weight:700}
+.mw .info .meta{color:var(--muted);font-size:13px}
+.mw .teams{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:10px;align-items:center}
+.mw .teams .sch span{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.35}
+.mw .teams .tb{display:flex;justify-content:flex-end;text-align:right}
+.mw .teams .tb .sch{flex-direction:row-reverse}
+.mw .teams .win{font-weight:700}
+.mw .sc{font-weight:700;font-size:17px;background:var(--card2);border:1px solid var(--line);border-radius:8px;padding:2px 10px;white-space:nowrap;min-width:64px;text-align:center}
+.mw .sc.done{background:var(--pri);color:var(--on-pri);border-color:var(--pri)}
+@media (max-width:760px){
+  .mw{grid-template-columns:72px minmax(0,1fr);gap:8px 12px;padding:12px 2px}
+  .mw .teams{grid-column:1/-1}
+}
 .bracket{display:flex;gap:18px;overflow-x:auto;padding-bottom:8px}
 .bcol{display:flex;flex-direction:column;justify-content:space-around;gap:12px;min-width:210px}
 .bcol h5{margin:0 0 4px;font-size:13px;color:var(--muted);text-align:center}
@@ -497,6 +517,17 @@ function matchRow(m,showEv=true){
       <div class="vs"><div class="${m.winner&&m.winner===m.a?'win':''}">${schip(m.a)}</div><div class="sc">${m.status==='bye'?'บาย':sc}</div><div class="b sch ${m.winner&&m.winner===m.b?'win':''}" style="display:flex">${m.status==='bye'?'<span class="tbd">—</span>':schip(m.b)}</div></div>
       ${m.note?`<div class="ev" style="margin:4px 0 0">📝 ${esc(m.note)}</div>`:''}${(m.refs||[]).length?`<div class="ev" style="margin:4px 0 0">⚖️ กรรมการ: ${esc(m.refs.join(', '))}</div>`:''}</div></div>`;
 }
+function matchWide(m){
+  const st=STATUS[m.status]||STATUS.scheduled;const ev=S.events[m.eventId];const done=m.status==='done';
+  const sc=(m.sa!=null&&m.sb!=null&&(done||m.status==='live'))?`${m.sa} – ${m.sb}`:'vs';const can=isAdmin();
+  const team=id=>id?schip(id,true):'<span class="tbd">รอผล</span>';
+  return `<div class="mw ${can?'clickable':''}" ${can?`data-act="editResult" data-id="${m.id}"`:''}>
+    <div class="tm">${esc(m.time||'--:--')} น.<small>${esc(m.date?fmtDate(m.date):'ยังไม่กำหนดวัน')}</small></div>
+    <div class="info"><div>${icon(ev?.sport)} <a href="#event-${m.eventId}" data-stop><b>${esc(evTitle(ev))}</b></a></div>
+      <div class="meta">${esc(m.round||'')}${m.venue?' · 📍 '+esc(m.venue):''} <span class="badge ${st[1]}">${st[0]}</span></div>${m.note?`<div class="meta">📝 ${esc(m.note)}</div>`:''}</div>
+    <div class="teams"><div class="${m.winner&&m.winner===m.a?'win':''}">${team(m.a)}</div><div class="sc ${done?'done':''}">${m.status==='bye'?'บาย':sc}</div><div class="tb ${m.winner&&m.winner===m.b?'win':''}">${m.status==='bye'?'<span class="tbd">—</span>':team(m.b)}</div></div>
+  </div>`;
+}
 function medalTable(rows,limit){
   if(!rows.length)return emptyBox('🏫','ยังไม่มีโรงเรียนในระบบ');
   const r=limit?rows.slice(0,limit):rows;
@@ -546,7 +577,7 @@ function pHome(){
   const doneEv=ev.filter(e=>e.result?.g?.length).length;
   const live=ms.filter(m=>m.status==='live');
   const upcoming=ms.filter(m=>m.status==='scheduled'&&m.date&&m.date>=td&&m.a&&m.b).slice(0,8);
-  const recent=ms.filter(m=>m.status==='done').sort((a,b)=>sortM(b,a)).slice(0,5);
+  const recent=ms.filter(m=>m.status==='done').sort((a,b)=>sortM(b,a)).slice(0,6);
   const news=list('news').sort((a,b)=>(b.pin?1:0)-(a.pin?1:0)||(b.at||0)-(a.at||0)).slice(0,3);
   let setup='';
   if(isAdmin()&&(!S.config||!sc.length||!ev.length||!ms.length)){
@@ -556,12 +587,12 @@ function pHome(){
   return `<div class="hero"><div style="flex:1;min-width:240px"><h2>${esc(c.title||'การแข่งขันกีฬาสหวิทยาเขต')}</h2><p>${c.start?'📅 '+esc(fmtDate(c.start,true))+(c.end&&c.end!==c.start?' – '+esc(fmtDate(c.end,true)):''):'ยังไม่กำหนดวันแข่งขัน'}${c.host?' · 🏫 เจ้าภาพ '+esc(c.host):''}</p></div>
     <div class="stats"><div class="stat"><b>${sc.length}</b><span>โรงเรียน</span></div><div class="stat"><b>${ev.length}</b><span>รายการแข่งขัน</span></div><div class="stat"><b>${ev.filter(e=>evStatus(e)==='done').length}</b><span>สรุปผลแล้ว</span></div><div class="stat"><b>${ms.filter(m=>m.date===td).length}</b><span>แมตช์วันนี้</span></div></div></div>
   ${setup}
-  ${live.length?`<div class="card live" style="margin-bottom:16px"><h3><span class="badge b-live">กำลังแข่งขัน</span> ${live.length} แมตช์</h3>${live.map(m=>matchRow(m)).join('')}</div>`:''}
-  <div class="grid g2">
-    <div class="card"><h3>🗓️ แมตช์ถัดไป<span class="sp"></span><button class="lnk" data-act="go" data-to="schedule">ดูทั้งหมด</button></h3>${upcoming.length?upcoming.map(m=>matchRow(m)).join(''):emptyBox('🗓️','ยังไม่มีแมตช์ที่กำหนดเวลาไว้')}</div>
-    ${hasPools()?`<div class="card"><h3>🎖️ ตัวแทนสหวิทยาเขต<span class="sp"></span><button class="lnk" data-act="go" data-to="results">ดูทั้งหมด</button></h3>${repsSummary(7)}</div>`:`<div class="card"><h3>🏅 ตารางเหรียญรางวัล<span class="sp"></span><button class="lnk" data-act="go" data-to="results">ดูทั้งหมด</button></h3>${medalTable(medals(),6)}</div>`}
-    <div class="card"><h3>✅ ผลล่าสุด</h3>${recent.length?recent.map(m=>matchRow(m)).join(''):emptyBox('📋','ยังไม่มีผลการแข่งขัน')}</div>
+  <div class="home">
     <div class="card"><h3>📣 ข่าวประกาศ<span class="sp"></span><button class="lnk" data-act="go" data-to="news">ดูทั้งหมด</button></h3>${news.length?news.map(newsItem).join(''):emptyBox('📣','ยังไม่มีข่าวประกาศ')}</div>
+    ${live.length?`<div class="card live"><h3><span class="badge b-live">กำลังแข่งขัน</span> ${live.length} แมตช์</h3>${live.map(matchWide).join('')}</div>`:''}
+    <div class="card"><h3>✅ ผลการแข่งขันล่าสุด<span class="sp"></span><button class="lnk" data-act="go" data-to="results">ดูทั้งหมด</button></h3>${recent.length?recent.map(matchWide).join(''):emptyBox('📋','ยังไม่มีผลการแข่งขัน')}</div>
+    <div class="card"><h3>🗓️ แมตช์ถัดไป<span class="sp"></span><button class="lnk" data-act="go" data-to="schedule">ดูทั้งหมด</button></h3>${upcoming.length?upcoming.map(matchWide).join(''):emptyBox('🗓️','ยังไม่มีแมตช์ที่กำหนดเวลาไว้')}</div>
+    ${hasPools()?`<div class="card"><h3>🎖️ ตัวแทนสหวิทยาเขต<span class="sp"></span><button class="lnk" data-act="go" data-to="results">ดูรายละเอียด</button></h3>${repsSummary()}</div>`:`<div class="card"><h3>🏅 ตารางเหรียญรางวัล<span class="sp"></span><button class="lnk" data-act="go" data-to="results">ดูทั้งหมด</button></h3>${medalTable(medals())}</div>`}
   </div>`;
 }
 
