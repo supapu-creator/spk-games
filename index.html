@@ -322,7 +322,9 @@ function regClosed(){const d=cfg().regDeadline;return d&&todayStr()>d}
 
 function medals(){
   const t={};for(const s of schoolsList())t[s.id]={id:s.id,g:0,s:0,b:0};
-  for(const e of eventsList()){const r=e.result||{};for(const k of ['g','s','b'])for(const sid of (r[k]||[]))if(t[sid])t[sid][k]++}
+  for(const e of eventsList()){const r=e.result||{};const has=['g','s','b'].some(k=>(r[k]||[]).length);
+    if(has){for(const k of ['g','s','b'])for(const sid of (r[k]||[]))if(t[sid])t[sid][k]++}
+    else if(e.format==='pools')for(const sid of (e.reps||[]))if(t[sid])t[sid].g++}
   const arr=Object.values(t).map(x=>({...x,total:x.g+x.s+x.b}));
   arr.sort((a,b)=>b.g-a.g||b.s-a.s||b.b-a.b||sname(a.id).localeCompare(sname(b.id),'th'));
   let rank=0,prev=null;arr.forEach((x,i)=>{const k=x.g+'-'+x.s+'-'+x.b;if(k!==prev){rank=i+1;prev=k}x.rank=rank});
@@ -612,7 +614,7 @@ function pResults(){
     body=`<div class="card" style="margin-bottom:16px"><h3>🏫 สรุปตามโรงเรียน</h3>${repsSummary()}</div>`+Object.entries(by).map(([s,arr])=>`<div class="dayh">${icon(s)} ${esc(s)}</div><div class="card">${arr.map(e=>{const st=EVST[evStatus(e)];return `<div class="evrow clickable" data-act="go" data-to="event-${e.id}"><div class="tt"><b>${esc([e.item,e.gender,e.age].filter(Boolean).join(' ')||e.sport)}</b>${(e.reps||[]).length?`<div style="margin-top:4px">${repsChips(e,true)}</div>`:`<small>${e.repsNeed?'รอผลการแข่งขัน · ตัวแทน '+e.repsNeed+' ทีม':'ยังไม่มีทีม'}</small>`}</div><span class="badge ${st[1]}">${st[0]}</span></div>`}).join('')}</div>`).join('');
   }else if(ui.resTab==='medals'){
     const m=medals();const tot=m.reduce((a,x)=>({g:a.g+x.g,s:a.s+x.s,b:a.b+x.b}),{g:0,s:0,b:0});
-    body=`<div class="card">${medalTable(m)}<p class="muted" style="font-size:12.5px;margin:12px 0 0">เรียงอันดับตามจำนวนเหรียญทอง → เงิน → ทองแดง · แจกแล้ว 🥇${tot.g} 🥈${tot.s} 🥉${tot.b} · สรุปผลแล้ว ${done.length} จาก ${ev.length} รายการ</p></div>`;
+    body=`<div class="card">${medalTable(m)}<p class="muted" style="font-size:12.5px;margin:12px 0 0">เรียงอันดับตามจำนวนเหรียญทอง → เงิน → ทองแดง · ตัวแทนสหวิทยาเขตนับเป็นชนะเลิศ · แจกแล้ว 🥇${tot.g} 🥈${tot.s} 🥉${tot.b} · สรุปผลแล้ว ${done.length} จาก ${ev.length} รายการ</p></div>`;
   }else{
     const by={};done.forEach(e=>(by[e.sport]??=[]).push(e));
     body=Object.keys(by).length?Object.entries(by).map(([s,arr])=>`<div class="dayh">${icon(s)} ${esc(s)}</div><div class="grid g3">${arr.map(e=>`<div class="card clickable" data-act="go" data-to="event-${e.id}"><div style="font-weight:600;margin-bottom:8px">${esc([e.item,e.gender,e.age].filter(Boolean).join(' '))}</div>${podium(e)}</div>`).join('')}</div>`).join(''):`<div class="card">${emptyBox('🏁','ยังไม่มีรายการที่สรุปผล')}</div>`;
@@ -670,8 +672,9 @@ function pEvent(id){
 
 /* ---------- โรงเรียน ---------- */
 function pSchools(){
-  const sc=schoolsList();const md={};medals().forEach(x=>md[x.id]=x);
+  const ml=medals();const md={};ml.forEach(x=>md[x.id]=x);const sc=schoolsList().sort((a,b)=>(md[a.id]?.rank||99)-(md[b.id]?.rank||99)||(a.name||'').localeCompare(b.name||'','th'));
   return `<div class="row"><div><h2 class="pt">โรงเรียนในสหวิทยาเขต</h2><p class="sub">${sc.length} โรงเรียน</p></div><span class="sp"></span>${isAdmin()?'<button class="btn" data-act="bulkSchools">📋 วางรายชื่อหลายโรงเรียน</button><button class="btn pri" data-act="editSchool">+ เพิ่มโรงเรียน</button>':''}</div>
+  ${sc.length?`<div class="card" style="margin-bottom:16px"><h3>🏅 อันดับเหรียญ</h3>${medalTable(ml)}<p class="muted" style="font-size:12.5px;margin:10px 0 0">เรียงตามเหรียญทอง → เงิน → ทองแดง · ทีมที่ได้เป็นตัวแทนสหวิทยาเขต นับเป็นรางวัลชนะเลิศ (เหรียญทอง)</p></div>`:''}
   ${sc.length?`<div class="grid g3">${sc.map(s=>{const m=md[s.id]||{g:0,s:0,b:0,rank:'-'};return `<div class="card schcard clickable" style="--c:${esc(s.color||'#ccc')}" data-act="go" data-to="school-${s.id}"><h4>${esc(s.name)}</h4><div class="muted" style="font-size:13px">${esc(s.short||'')}${s.contact?' · '+esc(s.contact):''}</div>
   <div class="mrow"><span class="med mg">${m.g}</span><span class="med ms">${m.s}</span><span class="med mb">${m.b}</span><span class="sp"></span><span class="muted" style="font-size:13px">อันดับ ${m.rank}</span></div></div>`}).join('')}</div>`:`<div class="card">${emptyBox('🏫','ยังไม่มีโรงเรียน',isAdmin()?'<button class="btn pri" data-act="bulkSchools">วางรายชื่อโรงเรียน</button>':'')}</div>`}`;
 }
